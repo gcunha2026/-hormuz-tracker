@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strait of Hormuz — Live Crisis Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;600;700&family=Barlow+Condensed:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --surface: #0f1318;
+    --surface2: #141920;
+    --border: #1e2530;
+    --accent: #ff4d1c;
+    --accent2: #ffaa00;
+    --green: #00e676;
+    --blue: #00b4ff;
+    --red: #ff3b3b;
+    --text: #e8edf3;
+    --muted: #6b7a8d;
+    --font-mono: 'Roboto Mono', monospace;
+    --font-display: 'Barlow Condensed', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-mono); font-size: 13px; min-height: 100vh; }
+  body::before { content: ''; position: fixed; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px); pointer-events: none; z-index: 1000; }
+  .header { background: var(--surface); border-bottom: 2px solid var(--accent); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; position: sticky; top: 0; z-index: 100; }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .logo { font-family: var(--font-display); font-size: 20px; font-weight: 900; letter-spacing: 3px; text-transform: uppercase; color: var(--text); }
+  .logo span { color: var(--accent); }
+  .status-pill { display: flex; align-items: center; gap: 6px; background: rgba(255,77,28,0.12); border: 1px solid rgba(255,77,28,0.4); border-radius: 2px; padding: 3px 10px; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); }
+  .pulse-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.7); } }
+  .header-right { display: flex; align-items: center; gap: 20px; color: var(--muted); font-size: 11px; }
+  #live-clock { color: var(--accent2); font-weight: 600; }
+  .crisis-banner { background: linear-gradient(90deg, var(--accent) 0%, #ff8c00 100%); padding: 10px 24px; display: flex; align-items: center; gap: 12px; font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #000; }
+  .banner-text { flex: 1; }
+  .day-counter { background: rgba(0,0,0,0.25); padding: 2px 12px; border-radius: 2px; font-size: 13px; }
+  .main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr 1fr 340px; gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .card-header { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; }
+  .card-title { font-family: var(--font-display); font-size: 12px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); }
+  .card-badge { font-size: 10px; letter-spacing: 1px; padding: 2px 7px; border-radius: 2px; font-weight: 600; }
+  .badge-live { background: rgba(255,77,28,0.15); color: var(--accent); border: 1px solid rgba(255,77,28,0.3); }
+  .badge-ai { background: rgba(0,180,255,0.1); color: var(--blue); border: 1px solid rgba(0,180,255,0.25); }
+  .badge-warn { background: rgba(255,170,0,0.1); color: var(--accent2); border: 1px solid rgba(255,170,0,0.3); }
+  .card-body { padding: 14px; }
+  .stat-big { display: flex; flex-direction: column; gap: 2px; padding: 14px; }
+  .stat-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); }
+  .stat-value { font-family: var(--font-display); font-size: 42px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
+  .stat-value.red { color: var(--red); }
+  .stat-value.orange { color: var(--accent); }
+  .stat-value.yellow { color: var(--accent2); }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .price-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+  .price-cell { background: var(--surface); padding: 14px; position: relative; overflow: hidden; }
+  .price-cell::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; }
+  .price-cell.up::after { background: var(--accent); }
+  .price-cell.down::after { background: var(--green); }
+  .price-name { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .price-value { font-family: var(--font-display); font-size: 28px; font-weight: 800; color: var(--text); line-height: 1; }
+  .price-change { font-size: 11px; margin-top: 3px; font-weight: 600; }
+  .price-change.up { color: var(--accent); }
+  .price-change.down { color: var(--green); }
+  .severity-grid { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .sev-row { display: flex; flex-direction: column; gap: 4px; }
+  .sev-label-row { display: flex; justify-content: space-between; align-items: center; }
+  .sev-name { font-size: 11px; color: var(--muted); }
+  .sev-score { font-family: var(--font-display); font-size: 14px; font-weight: 800; color: var(--accent); }
+  .sev-bar-bg { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .sev-bar { height: 100%; border-radius: 2px; }
+  .ai-panel { grid-column: 4; grid-row: 1 / 5; display: flex; flex-direction: column; gap: 16px; }
+  .intel-output { padding: 14px; min-height: 120px; font-size: 12px; line-height: 1.7; color: var(--text); }
+  .intel-output p { margin-bottom: 8px; }
+  .intel-output p:last-child { margin-bottom: 0; }
+  .intel-output strong { color: var(--accent2); font-weight: 600; }
+  .intel-thinking { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; font-style: italic; }
+  .thinking-dots span { animation: blink 1.4s infinite; font-size: 16px; }
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+  .refresh-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 9px; background: transparent; border: 1px solid var(--accent); color: var(--accent); font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; border-radius: 2px; transition: all 0.2s; margin-top: 4px; }
+  .refresh-btn:hover { background: rgba(255,77,28,0.1); }
+  .refresh-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .ins-grid { padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ins-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; font-size: 11px; }
+  .ins-name { color: var(--muted); }
+  .ins-status { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; color: var(--red); }
+  .span-full { grid-column: 1 / 4; }
+  .span-2 { grid-column: span 2; }
+  .carrier-row { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 8px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 3px; }
+  .carrier-top { display: flex; justify-content: space-between; width: 100%; align-items: center; }
+  .carrier-name { font-weight: 600; font-size: 12px; }
+  .carrier-status { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 2px 8px; border-radius: 2px; background: rgba(255,59,59,0.15); color: var(--red); border: 1px solid rgba(255,59,59,0.3); }
+  .carrier-vessels { font-size: 10px; color: var(--muted); }
+  .impact-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); }
+  .impact-cell { background: var(--surface); padding: 12px; text-align: center; }
+  .impact-icon { font-size: 20px; margin-bottom: 4px; }
+  .impact-name { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+  .impact-val { font-family: var(--font-display); font-size: 16px; font-weight: 800; color: var(--accent2); }
+  .impact-time { font-size: 9px; color: var(--muted); margin-top: 1px; }
+  .timeline { padding: 14px; display: flex; flex-direction: column; gap: 0; }
+  .timeline-item { display: flex; gap: 12px; padding-bottom: 16px; position: relative; }
+  .timeline-item:not(:last-child)::before { content: ''; position: absolute; left: 20px; top: 26px; bottom: 0; width: 1px; background: var(--border); }
+  .timeline-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 4px; flex-shrink: 0; margin-left: 17px; position: relative; z-index: 1; }
+  .timeline-dot.yellow { background: var(--accent2); }
+  .timeline-dot.blue { background: var(--blue); }
+  .timeline-content { flex: 1; }
+  .timeline-date { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+  .timeline-title { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 3px; line-height: 1.4; }
+  .timeline-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  .footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 16px; align-items: center; color: var(--muted); font-size: 10px; margin-top: 8px; flex-wrap: wrap; }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  .shimmer { background: linear-gradient(90deg, var(--surface2) 25%, var(--border) 50%, var(--surface2) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 2px; height: 28px; width: 100px; display: inline-block; }
+  @media (max-width: 1200px) { .main { grid-template-columns: 1fr 1fr; } .ai-panel { grid-column: 1 / 3; grid-row: auto; } .span-full { grid-column: 1 / 3; } .span-2 { grid-column: span 1; } }
+  @media (max-width: 700px) { .main { grid-template-columns: 1fr; padding: 12px; } .ai-panel { grid-column: 1; } .span-full { grid-column: 1; } .header { flex-wrap: wrap; height: auto; padding: 8px 14px; gap: 6px; } }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <div class="logo">HORMUZ<span>▌</span>MONITOR</div>
+    <div class="status-pill"><div class="pulse-dot"></div>LIVE</div>
+  </div>
+  <div class="header-right">
+    <span>DAY <strong id="day-count" style="color:var(--accent)">—</strong> OF CRISIS</span>
+    <span>UTC <span id="live-clock">--:--:--</span></span>
+  </div>
+</header>
+
+<div class="crisis-banner">
+  <span>⚠</span>
+  <span class="banner-text">STRAIT OF HORMUZ CLOSED — LARGEST SHIPPING DISRUPTION SINCE WWII — ~20% OF GLOBAL OIL SUPPLY AFFECTED</span>
+  <span class="day-counter" id="crisis-day-label">DAY —</span>
+</div>
+
+<div class="main">
+
+  <!-- SHIPS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Ships Detected Today</span>
+      <span class="card-badge badge-live">AIS LIVE</span>
+    </div>
+    <div class="stat-big">
+      <div class="stat-label">AIS-broadcasting transits</div>
+      <div class="stat-value red">~8</div>
+      <div class="stat-sub">vs ~138 daily average · ↓ ~94%</div>
+      <div class="stat-sub" style="margin-top:8px;color:var(--accent2)">⚠ AIS unreliable — ships going dark (EW)</div>
+    </div>
+  </div>
+
+  <!-- SEVERITY -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Crisis Severity</span>
+      <span class="card-badge badge-warn">9.2 / 10</span>
+    </div>
+    <div class="severity-grid">
+      <div class="sev-row"><div class="sev-label-row"><span class="sev-name">Ship Traffic</span><span class="sev-score">10/10</span></div><div class="sev-bar-bg"><div class="sev-bar" style="width:100%;background:var(--red)"></div></div></div>
+      <div class="sev-row"><div class="sev-label-row"><span class="sev-name">P&I Insurance</span><span class="sev-score">10/10</span></div><div class="sev-bar-bg"><div class="sev-bar" style="width:100%;background:var(--red)"></div></div></div>
+      <div class="sev-row"><div class="sev-label-row"><span class="sev-name">Carrier Ops</span><span class="sev-score">9/10</span></div><div class="sev-bar-bg"><div class="sev-bar" style="width:90%;background:var(--accent)"></div></div></div>
+      <div class="sev-row"><div class="sev-label-row"><span class="sev-name">Oil Price Impact</span><span class="sev-score">8/10</span></div><div class="sev-bar-bg"><div class="sev-bar" style="width:80%;background:var(--accent)"></div></div></div>
+      <div class="sev-row"><div class="sev-label-row"><span class="sev-name">Military Threat</span><span class="sev-score">9/10</span></div><div class="sev-bar-bg"><div class="sev-bar" style="width:90%;background:var(--accent)"></div></div></div>
+    </div>
+  </div>
+
+  <!-- STRANDED -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Vessels Stranded</span>
+      <span class="card-badge badge-warn">MAR 12</span>
+    </div>
+    <div class="stat-big">
+      <div class="stat-label">Ships idle in Gulf region</div>
+      <div class="stat-value orange">~3,200</div>
+      <div class="stat-sub">4% of global tonnage</div>
+    </div>
+    <div style="padding:0 14px 14px;display:flex;gap:8px;">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:8px 12px;flex:1;">
+        <div class="stat-label">Container ships</div>
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--accent2)">~100</div>
+        <div class="stat-sub">10% of global fleet</div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:8px 12px;flex:1;">
+        <div class="stat-label">TEU trapped</div>
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--red)">35+</div>
+        <div class="stat-sub">vessels in Gulf</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI PANEL -->
+  <div class="ai-panel">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">AI Intelligence Brief</span>
+        <span class="card-badge badge-ai">CLAUDE</span>
+      </div>
+      <div class="intel-output" id="intel-output">
+        <div class="intel-thinking">
+          <span>Fetching latest intelligence</span>
+          <span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span>
+        </div>
+      </div>
+      <div style="padding:0 14px 14px;">
+        <button class="refresh-btn" id="refresh-btn" onclick="fetchIntelligence()">↻ REFRESH INTELLIGENCE</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">P&I Insurance</span>
+        <span class="card-badge badge-live">WITHDRAWN</span>
+      </div>
+      <div class="ins-grid">
+        <div class="ins-item"><span class="ins-name">Gard</span><span class="ins-status">CANCELLED</span></div>
+        <div class="ins-item"><span class="ins-name">Skuld</span><span class="ins-status">CANCELLED</span></div>
+        <div class="ins-item"><span class="ins-name">NorthStandard</span><span class="ins-status">CANCELLED</span></div>
+        <div class="ins-item"><span class="ins-name">London P&I</span><span class="ins-status">CANCELLED</span></div>
+        <div class="ins-item"><span class="ins-name">American Club</span><span class="ins-status">CANCELLED</span></div>
+        <div class="ins-item"><span class="ins-name">Steamship Mutual</span><span class="ins-status">CANCELLED</span></div>
+      </div>
+      <div class="card-body" style="padding-top:0;">
+        <div style="display:flex;gap:12px;margin-top:8px;">
+          <div style="flex:1;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:8px;">
+            <div class="stat-label">War risk premium</div>
+            <div style="font-family:var(--font-display);font-size:16px;font-weight:800;color:var(--accent2)">0.2–1.0%</div>
+            <div class="stat-sub">was 0.125%</div>
+          </div>
+          <div style="flex:1;text-align:center;background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:8px;">
+            <div class="stat-label">VLCC transit cost</div>
+            <div style="font-family:var(--font-display);font-size:16px;font-weight:800;color:var(--red)">$1M</div>
+            <div class="stat-sub">was $125K</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRICES -->
+  <div class="card span-2">
+    <div class="card-header">
+      <span class="card-title">Energy Prices</span>
+      <span class="card-badge badge-live">LIVE</span>
+    </div>
+    <div class="price-grid">
+      <div class="price-cell up"><div class="price-name">Brent Crude</div><div class="price-value" id="brent-price"><span class="shimmer"></span></div><div class="price-change up" id="brent-change">loading…</div></div>
+      <div class="price-cell up"><div class="price-name">WTI Crude</div><div class="price-value" id="wti-price"><span class="shimmer"></span></div><div class="price-change up" id="wti-change">loading…</div></div>
+      <div class="price-cell up"><div class="price-name">EU Gas (TTF)</div><div class="price-value" id="ttf-price"><span class="shimmer"></span></div><div class="price-change up" id="ttf-change">loading…</div></div>
+      <div class="price-cell up"><div class="price-name">US Gasoline</div><div class="price-value" id="gas-price"><span class="shimmer"></span></div><div class="price-change up" id="gas-change">loading…</div></div>
+    </div>
+    <div style="padding:8px 14px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);">Pre-crisis: Brent $72 · WTI $65 · TTF €30 · US Gas $2.97</div>
+  </div>
+
+  <!-- CARRIERS -->
+  <div class="card span-full">
+    <div class="card-header">
+      <span class="card-title">Carrier Status — 8/8 Major Lines Suspended</span>
+      <span class="card-badge badge-live">SUSPENDED</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:14px;">
+      <div class="carrier-row"><div class="carrier-top"><span class="carrier-name">Maersk</span><span class="carrier-status">Suspended</span></div><span class="carrier-vessels">14 vessels (70K TEU) trapped · Mar 4</span></div>
+      <div class="carrier-row"><div class="carrier-top"><span class="carrier-name">MSC</span><span class="carrier-status">End of Voyage</span></div><span class="carrier-vessels">15 vessels (109K TEU) trapped · Mar 3</span></div>
+      <div class="carrier-row"><div class="carrier-top"><span class="carrier-name">CMA CGM</span><span class="carrier-status">Suspended</span></div><span class="carrier-vessels">Surcharge $2K/TEU · Mar 2</span></div>
+      <div class="carrier-row"><div class="carrier-top"><span class="carrier-name">Hapag-Lloyd</span><span class="carrier-status">Suspended</span></div><span class="carrier-vessels">War Risk $1,500/TEU · Mar 4</span></div>
+      <div class="carrier-row"><div class="carrier-top"><span class="carrier-name">COSCO</span><span class="carrier-status">Suspended</span></div><span class="carrier-vessels">5 vessels trapped · Mar 4</span></div>
+      <div class="carrier-row"><div class="carrier-top"><span class="carrier-name">ONE</span><span class="carrier-status">Suspended</span></div><span class="carrier-vessels">750 ships backed up · ONE Majesty trapped</span></div>
+      <div class="carrier-row"><div class="carrier-top"><span class="carrier-name">HMM</span><span class="carrier-status">Suspended</span></div><span class="carrier-vessels">Alt routes active · Mar 4</span></div>
+      <div class="carrier-row"><div class="carrier-top"><span class="carrier-name">Evergreen</span><span class="carrier-status">Suspended</span></div><span class="carrier-vessels">Cape reroute active · Mar 3</span></div>
+    </div>
+    <div style="padding:0 14px 10px;font-size:10px;color:var(--muted);">Note (Mar 11): Some Iran-linked/Chinese-flagged VLCCs resumed limited transits. Western commercial shipping remains fully suspended.</div>
+  </div>
+
+  <!-- CONSUMER IMPACT -->
+  <div class="card span-2">
+    <div class="card-header">
+      <span class="card-title">Consumer Impact Timeline</span>
+      <span class="card-badge badge-warn">ESTIMATES</span>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-cell"><div class="impact-icon">⛽</div><div class="impact-name">Gasoline</div><div class="impact-val">+7–15%</div><div class="impact-time">NOW</div></div>
+      <div class="impact-cell"><div class="impact-icon">🛒</div><div class="impact-name">Groceries</div><div class="impact-val">+3–8%</div><div class="impact-time">Apr 2026</div></div>
+      <div class="impact-cell"><div class="impact-icon">📱</div><div class="impact-name">Electronics</div><div class="impact-val">+2–4%</div><div class="impact-time">May 2026</div></div>
+      <div class="impact-cell"><div class="impact-icon">🚗</div><div class="impact-name">Auto Parts</div><div class="impact-val">+3–5%</div><div class="impact-time">Apr–May</div></div>
+      <div class="impact-cell"><div class="impact-icon">💊</div><div class="impact-name">Pharma</div><div class="impact-val">+2–5%</div><div class="impact-time">May 2026</div></div>
+      <div class="impact-cell"><div class="impact-icon">👕</div><div class="impact-name">Clothing</div><div class="impact-val">+1–3%</div><div class="impact-time">Jun 2026</div></div>
+    </div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Crisis Timeline</span>
+      <span class="card-badge badge-warn">DAY 1 → NOW</span>
+    </div>
+    <div class="timeline">
+      <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-date">Mar 12–13, 2026 · Day 13–14</div><div class="timeline-title">Limited Iran/China-linked transits resume</div><div class="timeline-desc">8 transits Tue, 4 more Wed — mostly Iran-linked or Chinese VLCCs. Western commercial shipping remains fully suspended.</div></div></div>
+      <div class="timeline-item"><div class="timeline-dot yellow"></div><div class="timeline-content"><div class="timeline-date">Mar 5, 2026 · Day 6</div><div class="timeline-title">P&I insurance formally withdrawn</div><div class="timeline-desc">All P&I clubs cancel coverage. VLCC transit cost reaches $1M/voyage.</div></div></div>
+      <div class="timeline-item"><div class="timeline-dot yellow"></div><div class="timeline-content"><div class="timeline-date">Mar 4, 2026 · Day 5</div><div class="timeline-title">IRGC claims "complete control"</div><div class="timeline-desc">3,200 ships idle. Brent $82+. Trump pledges Navy escorts.</div></div></div>
+      <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-date">Mar 2, 2026 · Day 3</div><div class="timeline-title">Zero AIS tankers at midnight</div><div class="timeline-desc">All 8 major carriers suspend. Houthis resume Red Sea attacks.</div></div></div>
+      <div class="timeline-item" style="padding-bottom:0;"><div class="timeline-dot blue"></div><div class="timeline-content"><div class="timeline-date">Feb 28, 2026 · Day 1</div><div class="timeline-title">US-Israel strikes on Iran (Operation Epic Fury)</div><div class="timeline-desc">Khamenei killed. Brent +10–13%. Traffic down 70% within 24h.</div></div></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <span>Sources: Windward AI · MarineTraffic · Bloomberg · ICIS · Reuters · Clarksons Research</span>
+  <span>•</span>
+  <span>AIS counts are lower bounds — ships going dark due to EW</span>
+  <span style="margin-left:auto;">hormuzmonitor.vercel.app</span>
+</div>
+
+<script>
+// CLOCK
+function updateClock() {
+  const n = new Date();
+  document.getElementById('live-clock').textContent =
+    [n.getUTCHours(), n.getUTCMinutes(), n.getUTCSeconds()]
+      .map(v => String(v).padStart(2,'0')).join(':');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// DAY COUNTER
+const CRISIS_START = new Date('2026-02-28T00:00:00Z');
+function updateDay() {
+  const d = Math.floor((new Date() - CRISIS_START) / 86400000) + 1;
+  document.getElementById('day-count').textContent = d;
+  document.getElementById('crisis-day-label').textContent = `DAY ${d}`;
+}
+updateDay();
+
+// PRICES — calls /api/prices (Vercel Function)
+const PRE = { brent: 72, wti: 65, ttf: 30, gas: 2.97 };
+
+async function fetchPrices() {
+  try {
+    const res = await fetch('/api/prices', { method: 'POST' });
+    const { prices } = await res.json();
+    if (!prices) throw new Error('no prices');
+
+    function render(id, cid, val, pre, pfx, sfx) {
+      if (!val) return;
+      const ch = val - pre, pct = ((ch/pre)*100).toFixed(1);
+      document.getElementById(id).textContent = `${pfx}${val.toFixed(2)}${sfx}`;
+      const el = document.getElementById(cid);
+      el.textContent = `${ch>=0?'+':''}${pfx}${ch.toFixed(2)} (${pct}%) vs pre-crisis`;
+      el.className = `price-change ${ch >= 0 ? 'up' : 'down'}`;
+    }
+    render('brent-price','brent-change', prices.brent, PRE.brent, '$', '/bbl');
+    render('wti-price',  'wti-change',   prices.wti,   PRE.wti,   '$', '/bbl');
+    render('ttf-price',  'ttf-change',   prices.ttf,   PRE.ttf,   '€', '/MWh');
+    render('gas-price',  'gas-change',   prices.gas,   PRE.gas,   '$', '/gal');
+  } catch(e) {
+    // Fallback cached values
+    [['brent-price','brent-change',83.74,72,'$','/bbl'],
+     ['wti-price','wti-change',74.42,65,'$','/bbl'],
+     ['ttf-price','ttf-change',48.00,30,'€','/MWh'],
+     ['gas-price','gas-change',3.19,2.97,'$','/gal']].forEach(([id,cid,v,p,pfx,sfx]) => {
+      const ch = v-p, pct = ((ch/p)*100).toFixed(1);
+      document.getElementById(id).textContent = `${pfx}${v.toFixed(2)}${sfx}`;
+      const el = document.getElementById(cid);
+      el.textContent = `+${pfx}${ch.toFixed(2)} (+${pct}%) ⚠ cached`;
+      el.className = 'price-change up';
+    });
+  }
+}
+
+// INTELLIGENCE — calls /api/intelligence (Vercel Function)
+async function fetchIntelligence() {
+  const btn = document.getElementById('refresh-btn');
+  const out = document.getElementById('intel-output');
+  btn.disabled = true;
+  btn.textContent = '↻ FETCHING…';
+  out.innerHTML = `<div class="intel-thinking"><span>Scanning latest intelligence</span><span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span></div>`;
+
+  try {
+    const res = await fetch('/api/intelligence', { method: 'POST' });
+    const { html, timestamp } = await res.json();
+    out.innerHTML = html + `<div style="margin-top:10px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);padding-top:8px;">Updated: ${timestamp}</div>`;
+  } catch(e) {
+    out.innerHTML = `<p><strong>Day 14:</strong> Limited transits resumed Mar 11–12, primarily Iran-linked and Chinese-flagged VLCCs. Western commercial shipping remains fully suspended.</p><p><strong>Diplomatic:</strong> US Navy escorts under evaluation. EU emergency reserves activated. India/Qatar force majeure declared.</p><p><strong>Markets:</strong> Brent holding above $82/bbl. Cape reroutes adding 10–14 days to Asia-Europe voyages.</p><div style="margin-top:10px;font-size:10px;color:var(--muted);border-top:1px solid var(--border);padding-top:8px;">⚠ Cached briefing</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ REFRESH INTELLIGENCE';
+  }
+}
+
+fetchPrices();
+fetchIntelligence();
+setInterval(fetchPrices, 5 * 60 * 1000);
+</script>
+</body>
+</html>
